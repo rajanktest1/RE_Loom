@@ -1,0 +1,12 @@
+{
+  "name": "@realestate/seed",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "seed": "npm run seed:auth && npm run seed:inventory && npm run seed:supply-chain && npm run seed:crm",
+    "seed:auth": "cd ../services/auth-service && npx ts-node src/seed.ts",
+    "seed:inventory": "cd ../services/inventory-service && npx ts-node src/seed.ts",
+    "seed:supply-chain": "cd ../services/supply-chain-service && npx ts-node src/seed.ts",
+    "seed:crm": "cd ../services/crm-service && npx ts-node src/seed.ts"
+  }
+}

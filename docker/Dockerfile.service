@@ -1,0 +1,92 @@
+# =============================================================================
+# Multi-stage Dockerfile for all Node.js microservices
+# Build: docker build -f docker/Dockerfile.service \
+#          --build-arg SERVICE_NAME=inventory-service \
+#          --build-arg SERVICE_PORT=4002 .
+# =============================================================================
+
+# --- Stage 1: Builder ---
+FROM node:20-alpine AS builder
+
+ARG SERVICE_NAME
+ENV SERVICE_NAME=${SERVICE_NAME}
+
+WORKDIR /app
+
+# Install turbo globally for pruning
+RUN npm install -g turbo@2
+
+# Copy root package files for dependency resolution
+COPY package.json package-lock.json turbo.json tsconfig.base.json ./
+
+# Copy all workspace package.json files (needed for npm install)
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/rabbitmq-client/package.json ./packages/rabbitmq-client/
+
+# Copy service and gateway package.json
+COPY services/auth-service/package.json ./services/auth-service/
+COPY services/inventory-service/package.json ./services/inventory-service/
+COPY services/supply-chain-service/package.json ./services/supply-chain-service/
+COPY services/crm-service/package.json ./services/crm-service/
+COPY services/notification-service/package.json ./services/notification-service/
+COPY services/document-service/package.json ./services/document-service/
+COPY apps/gateway/package.json ./apps/gateway/
+
+# Install all dependencies (workspace-aware)
+RUN npm ci --ignore-scripts
+
+# Copy source code
+COPY packages/ ./packages/
+COPY services/ ./services/
+COPY apps/gateway/ ./apps/gateway/
+
+# Build shared packages first, then the target service
+RUN turbo build --filter=@realestate/${SERVICE_NAME}
+
+# --- Stage 2: Production Runner ---
+FROM node:20-alpine AS runner
+
+ARG SERVICE_NAME
+ARG SERVICE_PORT=4000
+ENV NODE_ENV=production
+ENV SERVICE_NAME=${SERVICE_NAME}
+ENV PORT=${SERVICE_PORT}
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 appuser
+
+# Copy package files for production install
+COPY package.json package-lock.json ./
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/rabbitmq-client/package.json ./packages/rabbitmq-client/
+
+# Determine if service is in services/ or apps/ and copy its package.json
+COPY services/${SERVICE_NAME}/package.json ./services/${SERVICE_NAME}/ 2>/dev/null || true
+COPY apps/${SERVICE_NAME}/package.json ./apps/${SERVICE_NAME}/ 2>/dev/null || true
+
+# Install production dependencies only
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+# Copy built artifacts from builder
+COPY --from=builder /app/packages/shared-types/dist ./packages/shared-types/dist
+COPY --from=builder /app/packages/shared-utils/dist ./packages/shared-utils/dist
+COPY --from=builder /app/packages/database/dist ./packages/database/dist
+COPY --from=builder /app/packages/rabbitmq-client/dist ./packages/rabbitmq-client/dist
+
+# Copy the target service's dist
+COPY --from=builder /app/services/${SERVICE_NAME}/dist ./services/${SERVICE_NAME}/dist 2>/dev/null || true
+COPY --from=builder /app/apps/${SERVICE_NAME}/dist ./apps/${SERVICE_NAME}/dist 2>/dev/null || true
+
+USER appuser
+
+EXPOSE ${SERVICE_PORT}
+
+# Start the service
+CMD node services/${SERVICE_NAME}/dist/index.js || node apps/${SERVICE_NAME}/dist/index.js

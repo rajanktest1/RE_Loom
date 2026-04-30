@@ -1,0 +1,21 @@
+{
+  "name": "@realestate/shared-utils",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.0",
+    "@types/express": "^4.17.21",
+    "typescript": "^5.4.0",
+    "rimraf": "^5.0.0"
+  }
+}

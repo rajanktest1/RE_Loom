@@ -1,0 +1,110 @@
+name: Build & Push Images to ACR
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/ci.yml'
+
+env:
+  ACR_NAME: ${{ vars.ACR_NAME }}
+  ACR_LOGIN_SERVER: ${{ vars.ACR_NAME }}.azurecr.io
+  IMAGE_TAG: ${{ github.sha }}
+  IMAGE_TAG_SHORT: sha-${{ github.sha }}
+
+permissions:
+  id-token: write   # OIDC
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build & Push
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: auth-service
+            port: 4001
+            context: .
+            dockerfile: docker/Dockerfile.service
+          - name: inventory-service
+            port: 4002
+            context: .
+            dockerfile: docker/Dockerfile.service
+          - name: supply-chain-service
+            port: 4003
+            context: .
+            dockerfile: docker/Dockerfile.service
+          - name: crm-service
+            port: 4004
+            context: .
+            dockerfile: docker/Dockerfile.service
+          - name: notification-service
+            port: 4005
+            context: .
+            dockerfile: docker/Dockerfile.service
+          - name: document-service
+            port: 4006
+            context: .
+            dockerfile: docker/Dockerfile.service
+          - name: gateway
+            port: 4000
+            context: .
+            dockerfile: docker/Dockerfile.service
+          - name: web
+            port: 80
+            context: .
+            dockerfile: docker/Dockerfile.web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          build-args: |
+            SERVICE_NAME=${{ matrix.service.name }}
+            SERVICE_PORT=${{ matrix.service.port }}
+            VITE_API_URL=${{ vars.VITE_API_URL }}
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/realestate/${{ matrix.service.name }}:${{ env.IMAGE_TAG_SHORT }}
+            ${{ env.ACR_LOGIN_SERVER }}/realestate/${{ matrix.service.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  trigger-deploy:
+    name: Trigger Deployment
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to InfraRepo
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.INFRA_REPO_PAT }}
+          repository: ${{ github.repository_owner }}/InfraRepo
+          event-type: deploy-app
+          client-payload: |
+            {
+              "image_tag": "sha-${{ github.sha }}",
+              "environment": "dev",
+              "triggered_by": "${{ github.actor }}",
+              "commit_sha": "${{ github.sha }}",
+              "commit_message": "${{ github.event.head_commit.message }}"
+            }
