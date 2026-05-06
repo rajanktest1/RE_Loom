@@ -22,7 +22,7 @@ export function MainLayout() {
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md flex flex-col">
         <div className="p-6 border-b">
-          <h1 className="text-xl font-bold text-primary-700">RealEstate</h1>
+          <h1 className="text-xl font-bold text-primary-700">ReLoom RealEstate</h1>
           <p className="text-sm text-gray-500">Management Platform</p>
         </div>
 
