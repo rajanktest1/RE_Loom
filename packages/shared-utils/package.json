@@ -10,12 +10,11 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "uuid": "^9.0.0"
+    "nodemailer": "8.0.10"
   },
   "devDependencies": {
-    "@types/uuid": "^9.0.0",
     "@types/express": "^4.17.21",
-    "typescript": "^5.4.0",
-    "rimraf": "^5.0.0"
+    "rimraf": "^5.0.0",
+    "typescript": "^5.4.0"
   }
 }

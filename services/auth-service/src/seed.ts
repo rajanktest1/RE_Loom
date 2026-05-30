@@ -18,6 +18,14 @@ async function seed() {
 
   const users = [
     {
+      email: 'superadmin@realestate.com',
+      passwordHash,
+      name: 'Super Admin',
+      role: 'super_admin',
+      phone: '+91 9876543200',
+      isActive: true,
+    },
+    {
       email: 'admin@realestate.com',
       passwordHash,
       name: 'Rajesh Kumar',

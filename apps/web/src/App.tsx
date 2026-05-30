@@ -7,6 +7,7 @@ import { DashboardPage } from '@/modules/dashboard/pages/DashboardPage';
 import { InventoryPage } from '@/modules/inventory/pages/InventoryPage';
 import { SupplyChainPage } from '@/modules/supply-chain/pages/SupplyChainPage';
 import { CRMPage } from '@/modules/crm/pages/CRMPage';
+import { SAdminPage } from '@/modules/s-admin/pages/SAdminPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="inventory/*" element={<InventoryPage />} />
         <Route path="supply-chain/*" element={<SupplyChainPage />} />
         <Route path="crm/*" element={<CRMPage />} />
+        <Route path="s-admin" element={<SAdminPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

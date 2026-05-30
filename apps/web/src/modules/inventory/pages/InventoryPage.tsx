@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import api from '@/shared/api/client';
 
 interface Unit {
@@ -52,13 +52,19 @@ export function InventoryPage() {
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ available: 0, locked: 0, sold: 0, maintenance: 0, total: 0 });
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [addingProject, setAddingProject] = useState(false);
+
+  const fetchProjects = () => {
+    api.get('/inventory/projects').then(({ data }) => {
+      setProjects(data.data || []);
+      if (data.data?.length > 0 && !selectedProject) setSelectedProject(data.data[0]._id);
+    }).catch(() => {});
+  };
 
   // Fetch projects on mount
   useEffect(() => {
-    api.get('/inventory/projects').then(({ data }) => {
-      setProjects(data.data || []);
-      if (data.data?.length > 0) setSelectedProject(data.data[0]._id);
-    }).catch(() => {});
+    fetchProjects();
   }, []);
 
   // Fetch blocks when project changes
@@ -125,7 +131,7 @@ export function InventoryPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
-        <button className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+        <button onClick={() => setShowAddProject(true)} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
           + Add Project
         </button>
       </div>
@@ -310,6 +316,110 @@ export function InventoryPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Project Modal */}
+      {showAddProject && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAddProject(false)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Add New Project</h3>
+            <form onSubmit={async (e: FormEvent<HTMLFormElement>) => {
+              e.preventDefault();
+              setAddingProject(true);
+              const form = e.currentTarget;
+              const formData = new FormData(form);
+              try {
+                await api.post('/inventory/projects', {
+                  name: formData.get('name'),
+                  location: {
+                    address: formData.get('address'),
+                    city: formData.get('city'),
+                    state: formData.get('state'),
+                    pincode: formData.get('pincode'),
+                  },
+                  totalUnits: Number(formData.get('totalUnits')),
+                  reraNumber: formData.get('reraNumber'),
+                  status: formData.get('status'),
+                  startDate: formData.get('startDate'),
+                  expectedCompletion: formData.get('expectedCompletion'),
+                  description: formData.get('description'),
+                });
+                setShowAddProject(false);
+                fetchProjects();
+              } catch (err: any) {
+                alert(err.response?.data?.message || 'Failed to create project');
+              } finally {
+                setAddingProject(false);
+              }
+            }}>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Name *</label>
+                  <input name="name" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="e.g. Sunrise Heights" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">RERA Number *</label>
+                  <input name="reraNumber" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="e.g. RERA/2024/001" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
+                  <input name="address" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="Street address" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                    <input name="city" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="City" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
+                    <input name="state" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="State" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pincode *</label>
+                    <input name="pincode" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="560001" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Units *</label>
+                    <input name="totalUnits" type="number" min="1" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="100" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select name="status" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                      <option value="planning">Planning</option>
+                      <option value="active">Active</option>
+                      <option value="completed">Completed</option>
+                      <option value="on_hold">On Hold</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+                    <input name="startDate" type="date" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Expected Completion *</label>
+                    <input name="expectedCompletion" type="date" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea name="description" rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="Brief project description" />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button type="submit" disabled={addingProject} className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50">
+                  {addingProject ? 'Creating...' : 'Create Project'}
+                </button>
+                <button type="button" onClick={() => setShowAddProject(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

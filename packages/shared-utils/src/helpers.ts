@@ -1,11 +1,11 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export function generateCorrelationId(): string {
-  return uuidv4();
+  return randomUUID();
 }
 
 export function generateId(): string {
-  return uuidv4();
+  return randomUUID();
 }
 
 export function paginate(page: number = 1, limit: number = 20) {

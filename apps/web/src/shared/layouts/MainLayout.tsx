@@ -8,6 +8,10 @@ const navItems = [
   { to: '/crm', label: 'CRM & Sales', icon: '🤝' },
 ];
 
+const adminNavItems = [
+  { to: '/s-admin', label: 'S-ADMIN', icon: '🛡️', roles: ['super_admin'] },
+];
+
 export function MainLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -43,6 +47,24 @@ export function MainLayout() {
               {item.label}
             </NavLink>
           ))}
+          {adminNavItems
+            .filter((item) => item.roles.includes(user?.role || ''))
+            .map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-red-50 text-red-700'
+                      : 'text-red-600 hover:bg-red-50 hover:text-red-800'
+                  }`
+                }
+              >
+                <span>{item.icon}</span>
+                {item.label}
+              </NavLink>
+            ))}
         </nav>
 
         <div className="p-4 border-t">
