@@ -45,7 +45,33 @@ COPY apps/gateway/ ./apps/gateway/
 # Build shared packages first, then the target service
 RUN turbo build --filter=@realestate/${SERVICE_NAME}
 
-# --- Stage 2: Production Runner ---
+# --- Stage 2: Collect dist ---
+FROM builder AS dist-collector
+ARG SERVICE_NAME
+RUN mkdir -p /dist/packages/shared-types /dist/packages/shared-utils \
+             /dist/packages/database /dist/packages/rabbitmq-client && \
+    if [ -d /app/packages/shared-types/dist ]; then \
+      cp -r /app/packages/shared-types/dist /dist/packages/shared-types/; \
+    fi && \
+    if [ -d /app/packages/shared-utils/dist ]; then \
+      cp -r /app/packages/shared-utils/dist /dist/packages/shared-utils/; \
+    fi && \
+    if [ -d /app/packages/database/dist ]; then \
+      cp -r /app/packages/database/dist /dist/packages/database/; \
+    fi && \
+    if [ -d /app/packages/rabbitmq-client/dist ]; then \
+      cp -r /app/packages/rabbitmq-client/dist /dist/packages/rabbitmq-client/; \
+    fi && \
+    if [ -d /app/services/${SERVICE_NAME}/dist ]; then \
+      mkdir -p /dist/services/${SERVICE_NAME} && \
+      cp -r /app/services/${SERVICE_NAME}/dist /dist/services/${SERVICE_NAME}/; \
+    fi && \
+    if [ -d /app/apps/${SERVICE_NAME}/dist ]; then \
+      mkdir -p /dist/apps/${SERVICE_NAME} && \
+      cp -r /app/apps/${SERVICE_NAME}/dist /dist/apps/${SERVICE_NAME}/; \
+    fi
+
+# --- Stage 3: Production Runner ---
 FROM node:20-alpine AS runner
 
 ARG SERVICE_NAME
@@ -66,23 +92,19 @@ COPY packages/shared-types/package.json ./packages/shared-types/
 COPY packages/shared-utils/package.json ./packages/shared-utils/
 COPY packages/database/package.json ./packages/database/
 COPY packages/rabbitmq-client/package.json ./packages/rabbitmq-client/
-
-# Copy service package.json (services/ for microservices, apps/ for gateway)
-COPY services/ ./services/
+COPY services/auth-service/package.json ./services/auth-service/
+COPY services/inventory-service/package.json ./services/inventory-service/
+COPY services/supply-chain-service/package.json ./services/supply-chain-service/
+COPY services/crm-service/package.json ./services/crm-service/
+COPY services/notification-service/package.json ./services/notification-service/
+COPY services/document-service/package.json ./services/document-service/
 COPY apps/gateway/package.json ./apps/gateway/
 
 # Install production dependencies only
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-# Copy built artifacts from builder
-COPY --from=builder /app/packages/shared-types/dist ./packages/shared-types/dist
-COPY --from=builder /app/packages/shared-utils/dist ./packages/shared-utils/dist
-COPY --from=builder /app/packages/database/dist ./packages/database/dist
-COPY --from=builder /app/packages/rabbitmq-client/dist ./packages/rabbitmq-client/dist
-
-# Copy all services and apps dist (only the built ones will exist)
-COPY --from=builder /app/services/ ./services/
-COPY --from=builder /app/apps/gateway/ ./apps/gateway/
+# Copy built artifacts from dist-collector
+COPY --from=dist-collector /dist/ ./
 
 USER appuser
 
