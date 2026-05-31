@@ -98,7 +98,7 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.INFRA_REPO_PAT }}
-          repository: ${{ github.repository_owner }}/InfraRepo
+          repository: ${{ github.repository_owner }}/RE_Loom_Infra
           event-type: deploy-app
           client-payload: |
             {
